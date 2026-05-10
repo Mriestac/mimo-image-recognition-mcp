@@ -1,0 +1,34 @@
+[project]
+name = "mimo-image-recognition-mcp"
+version = "0.1.0"
+description = "MCP server for MIMO image recognition"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]",
+    "httpx"
+]
+
+authors = [
+    { name = "Mriestac" }
+]
+
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "mimo",
+    "image-recognition",
+    "vision"
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+[project.scripts]
+mimo-image-recognition-mcp = "mimo_image_recognition_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

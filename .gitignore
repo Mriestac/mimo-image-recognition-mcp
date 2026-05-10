@@ -1,0 +1,9 @@
+# Python-generated files
+.venv/
+__pycache__/
+*.pyc
+.env
+mimo_config.json
+dist/
+build/
+*.egg-info/
