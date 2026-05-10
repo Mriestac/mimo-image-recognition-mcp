@@ -21,8 +21,10 @@
 
 支持的输入方式：
 
-- `image_path`：本地图片路径，例如 `E:/screenshot.png`
-- `image_url`：网络图片 URL，例如 `https://example.com/image.png`
+- `image_path`: 单张本地图片路径
+- `image_url`: 单张网络图片 URL
+- `image_paths`: 多张本地图片路径
+- `image_urls`: 多张网络图片 URL
 - `prompt`：由 Agent 自己决定的图片理解任务
 - `system_prompt`：可选系统提示词
 - `temperature`：输出随机性
@@ -42,11 +44,12 @@ MCP 配置示例：
     "mimo-image-recognition": {
       "command": "uvx",
       "args": [
+        "--refresh",
         "mimo-image-recognition-mcp"
       ],
       "env": {
-        "MIMO_API_KEY": "你的 MIMO API Key",
-        "MIMO_API_BASE": "https://api.xiaomimimo.com/v1",
+        "MIMO_API_KEY": "用户自己的 API Key",
+        "MIMO_API_BASE": "https://token-plan-cn.xiaomimimo.com/v1",
         "MIMO_MODEL": "mimo-v2.5"
       }
     }
@@ -98,7 +101,7 @@ uv sync
       ],
       "env": {
         "MIMO_API_KEY": "你的 MIMO API Key",
-        "MIMO_API_BASE": "https://api.xiaomimimo.com/v1",
+        "MIMO_API_BASE": "https://token-plan-cn.xiaomimimo.com/v1",
         "MIMO_MODEL": "mimo-v2.5"
       }
     }
