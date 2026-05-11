@@ -62,7 +62,7 @@ MCP 配置示例：
 | 配置项 | 说明 |
 |---|---|
 | `MIMO_API_KEY` | 你的 MIMO API Key |
-| `MIMO_API_BASE` | MIMO API 请求地址，通常为 `https://api.xiaomimimo.com/v1` |
+| `MIMO_API_BASE` | MIMO API 请求地址，通常为 `https://api.xiaomimimo.com/v1`或`https://token-plan-cn.xiaomimimo.com/v1` |
 | `MIMO_MODEL` | 要调用的 MIMO 模型名称，例如 `mimo-v2.5` |
 
 
