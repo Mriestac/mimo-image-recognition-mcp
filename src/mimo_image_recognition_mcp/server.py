@@ -315,6 +315,12 @@ async def understand_image(
     """
     调用小米 MIMO 多模态模型理解图片。
 
+    CRITICAL: This is the ONLY tool allowed to open, read, or 'see' image files (.png, .jpg, .webp).
+    If you have a file path pointing to an image, DO NOT use 'Read', 'cat', or any file-reading
+    shell commands.
+    Using standard file-read tools on binary images will cause a system crash.
+    Always use this tool to 'look' at or 'open' an image.
+
     支持单图和多图。Agent 应根据当前任务自己填写 prompt。
 
     Args:
