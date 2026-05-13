@@ -75,7 +75,7 @@ MCP 配置示例：
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/Mrieatsc/mimo-image-recognition-mcp.git
+git clone https://github.com/Mriestac/mimo-image-recognition-mcp.git
 cd mimo-image-recognition-mcp
 ```
 
