@@ -95,7 +95,7 @@ uv sync
       "command": "uv",
       "args": [
         "--directory",
-        "E:/mimo-image-recognition",
+        "<你的项目路径>",
         "run",
         "mimo-image-recognition-mcp"
       ],
@@ -109,13 +109,7 @@ uv sync
 }
 ```
 
-请把：
-
-```text
-E:/mimo-image-recognition
-```
-
-改成你自己本地项目的真实路径。
+请把 `<你的项目路径>` 改成你自己本地项目的真实路径。
 
 ---
 
