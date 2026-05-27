@@ -313,6 +313,14 @@ async def understand_image(
     max_tokens: int = 12000,
 ) -> str:
     """
+    Use this tool for ALL image understanding tasks.
+
+    This tool calls Xiaomi MIMO multimodal model to inspect and understand images.
+    Whenever the user asks to read, understand, describe, compare, OCR, extract text from,
+    analyze, classify, or answer questions about an image, screenshot, photo, UI capture,
+    chart, poster, document image, receipt, label, or any visual file, you MUST call this tool
+    before giving a final answer.
+
     调用小米 MIMO 多模态模型理解图片。
 
     CRITICAL: This is the ONLY tool allowed to open, read, or 'see' image files (.png, .jpg, .webp).
