@@ -30,6 +30,14 @@
 - `temperature`：输出随机性
 - `max_tokens`：最大输出长度
 
+### 建议写入 `CLAUDE.md`
+
+为了让 Claude 在图片识别、OCR、截图分析等任务中稳定调用本 MCP，建议在项目的 `CLAUDE.md` 中加入类似说明：
+
+```markdown
+进行图片识别任务时，只使用 mimo_image_recognition_mcp。
+```
+
 ---
 
 ## 安装方式一：通过 PyPI / uvx 使用
