@@ -7,3 +7,6 @@ mimo_config.json
 dist/
 build/
 *.egg-info/
+
+# Playwright MCP
+.playwright-mcp/

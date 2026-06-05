@@ -1,9 +1,10 @@
 [project]
 name = "mimo-image-recognition-mcp"
-version = "0.1.4"
-description = "MCP server for MIMO image recognition"
+version = "0.2.0"
+description = "MCP server for MIMO multimodal recognition (image, audio, video)"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
 dependencies = [
     "mcp[cli]",
     "httpx"
@@ -18,13 +19,26 @@ keywords = [
     "model-context-protocol",
     "mimo",
     "image-recognition",
-    "vision"
+    "audio-understanding",
+    "video-understanding",
+    "multimodal",
+    "vision",
+    "xiaomi"
 ]
 
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent"
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
+
+[project.urls]
+Homepage = "https://github.com/Mriestac/mimo-image-recognition-mcp"
+Repository = "https://github.com/Mriestac/mimo-image-recognition-mcp"
+Issues = "https://github.com/Mriestac/mimo-image-recognition-mcp/issues"
+Documentation = "https://platform.xiaomimimo.com/docs/zh-CN/api/chat/openai-api"
 
 [project.scripts]
 mimo-image-recognition-mcp = "mimo_image_recognition_mcp.server:main"
