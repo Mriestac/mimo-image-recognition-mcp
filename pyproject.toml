@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "MCP server for MIMO multimodal recognition (image, audio, video)"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = { text = "MIT" }
 dependencies = [
     "mcp[cli]",
     "httpx"

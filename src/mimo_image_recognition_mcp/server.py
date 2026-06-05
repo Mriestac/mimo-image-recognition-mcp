@@ -182,11 +182,13 @@ def local_image_to_data_url(image_path: str) -> str:
 
 
 def local_audio_to_data_url(audio_path: str) -> str:
-    return _local_file_to_data_url(audio_path, "音频", 100, guess_audio_mime_type)
+    # 本地文件转 Base64 后会膨胀约 33%，为避免内存溢出，限制原始文件 ≤50MB
+    return _local_file_to_data_url(audio_path, "音频", 50, guess_audio_mime_type)
 
 
 def local_video_to_data_url(video_path: str) -> str:
-    return _local_file_to_data_url(video_path, "视频", 300, guess_video_mime_type)
+    # 本地文件转 Base64 后会膨胀约 33%，为避免内存溢出，限制原始文件 ≤50MB
+    return _local_file_to_data_url(video_path, "视频", 50, guess_video_mime_type)
 
 
 # ---------------------------------------------------------------------------
@@ -233,12 +235,15 @@ def _build_media_urls(
     file_paths: list[str] | None,
     file_urls: list[str] | None,
     category: str,
+    param_prefix: str,
     local_func,
     validate_func,
     max_count: int,
 ) -> list[str]:
     """
     构建媒体 URL 列表（通用逻辑）。
+
+    param_prefix: 对外暴露的参数前缀，如 "image" / "audio" / "video"。
     """
     result: list[str] = []
 
@@ -259,7 +264,7 @@ def _build_media_urls(
     if not result:
         raise ValueError(
             f"必须至少传入一个{category}文件："
-            f"{category}_path、{category}_url、{category}_paths 或 {category}_urls。"
+            f"{param_prefix}_path、{param_prefix}_url、{param_prefix}_paths 或 {param_prefix}_urls。"
         )
 
     if len(result) > max_count:
@@ -278,7 +283,7 @@ def build_image_urls(
 ) -> list[str]:
     return _build_media_urls(
         image_path, image_url, image_paths, image_urls,
-        "图片", local_image_to_data_url, validate_image_url, 6,
+        "图片", "image", local_image_to_data_url, validate_image_url, 6,
     )
 
 
@@ -290,7 +295,7 @@ def build_audio_urls(
 ) -> list[str]:
     return _build_media_urls(
         audio_path, audio_url, audio_paths, audio_urls,
-        "音频", local_audio_to_data_url, validate_audio_url, 10,
+        "音频", "audio", local_audio_to_data_url, validate_audio_url, 10,
     )
 
 
@@ -302,7 +307,7 @@ def build_video_urls(
 ) -> list[str]:
     return _build_media_urls(
         video_path, video_url, video_paths, video_urls,
-        "视频", local_video_to_data_url, validate_video_url, 5,
+        "视频", "video", local_video_to_data_url, validate_video_url, 5,
     )
 
 

@@ -27,8 +27,8 @@ MIMO 2.5 Pro 继续推理并回答用户
 | 工具 | 功能 | 支持格式 | 输入方式 | 限制 |
 |------|------|---------|---------|------|
 | `understand_image` | 图片理解、OCR、截图分析 | JPG/JPEG/PNG/WebP/GIF | 本地路径 / 网络URL / Base64 | 单文件 ≤20MB，最多 6 张 |
-| `understand_audio` | 音频转录、声音分析 | MP3/WAV/FLAC/M4A/OGG | 本地路径 / 网络URL / Base64 | URL ≤100MB，Base64 ≤50MB |
-| `understand_video` | 视频内容分析、动作识别 | MP4/MOV/AVI/WMV | 本地路径 / 网络URL / Base64 | URL ≤300MB，Base64 ≤50MB |
+| `understand_audio` | 音频转录、声音分析 | MP3/WAV/FLAC/M4A/OGG | 本地路径 / 网络URL / Base64 | 本地 ≤50MB，URL ≤100MB |
+| `understand_video` | 视频内容分析、动作识别 | MP4/MOV/AVI/WMV | 本地路径 / 网络URL / Base64 | 本地 ≤50MB，URL ≤300MB |
 
 ---
 
@@ -469,10 +469,13 @@ asyncio.run(main())
 
 ### Q: 音频/视频有大小限制吗？
 
-| 类型 | URL 方式 | Base64 方式 |
-|------|---------|------------|
-| 音频 | ≤ 100 MB | ≤ 50 MB |
-| 视频 | ≤ 300 MB | ≤ 50 MB |
+| 类型 | 本地文件 | URL 方式 |
+|------|---------|---------|
+| 图片 | ≤ 20 MB | 无限制 |
+| 音频 | ≤ 50 MB | ≤ 100 MB |
+| 视频 | ≤ 50 MB | ≤ 300 MB |
+
+> 本地文件限制为原始文件大小。由于 Base64 编码会膨胀约 33%，本地文件限制比 URL 方式更严格以避免内存溢出。
 
 ### Q: 视频的 fps 和 media_resolution 怎么选？
 
