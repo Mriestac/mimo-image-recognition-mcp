@@ -8,7 +8,12 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 
-mcp = FastMCP("mimo-image-recognition")
+mcp = FastMCP("mimo-multimedia-recognition")
+
+
+# ---------------------------------------------------------------------------
+# 配置
+# ---------------------------------------------------------------------------
 
 
 def load_mimo_settings() -> dict[str, str]:
@@ -64,60 +69,107 @@ def build_chat_completions_url(api_base: str) -> str:
     return f"{api_base}/chat/completions"
 
 
-def guess_mime_type(image_path: Path) -> str:
+# ---------------------------------------------------------------------------
+# MIME 类型推断
+# ---------------------------------------------------------------------------
+
+IMAGE_EXTENSIONS = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+
+AUDIO_EXTENSIONS = {
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".flac": "audio/flac",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+}
+
+VIDEO_EXTENSIONS = {
+    ".mp4": "video/mp4",
+    ".mov": "video/quicktime",
+    ".avi": "video/x-msvideo",
+    ".wmv": "video/x-ms-wmv",
+}
+
+
+def _guess_mime_type(file_path: Path, category: str, extensions: dict[str, str]) -> str:
     """
-    根据文件后缀推断图片 MIME 类型。
+    根据文件后缀推断 MIME 类型。
     """
-    mime_type, _ = mimetypes.guess_type(str(image_path))
+    mime_type, _ = mimetypes.guess_type(str(file_path))
 
     if mime_type is None:
-        suffix = image_path.suffix.lower()
+        suffix = file_path.suffix.lower()
 
-        if suffix in [".jpg", ".jpeg"]:
-            return "image/jpeg"
+        if suffix in extensions:
+            return extensions[suffix]
 
-        if suffix == ".png":
-            return "image/png"
-
-        if suffix == ".webp":
-            return "image/webp"
-
-        if suffix == ".gif":
-            return "image/gif"
-
+        supported = ", ".join(sorted(k.lstrip(".") for k in extensions))
         raise ValueError(
-            f"无法识别图片类型：{image_path.suffix}。"
-            "请使用 jpg、jpeg、png、webp 或 gif 图片。"
+            f"无法识别{category}类型：{file_path.suffix}。"
+            f"请使用 {supported} 格式。"
         )
 
-    if not mime_type.startswith("image/"):
-        raise ValueError(f"文件不是图片类型：{mime_type}")
+    expected_prefix = {
+        "图片": "image/",
+        "音频": "audio/",
+        "视频": "video/",
+    }[category]
+
+    if not mime_type.startswith(expected_prefix):
+        raise ValueError(f"文件不是{category}类型：{mime_type}")
 
     return mime_type
 
 
-def local_image_to_data_url(image_path: str) -> str:
+def guess_image_mime_type(image_path: Path) -> str:
+    return _guess_mime_type(image_path, "图片", IMAGE_EXTENSIONS)
+
+
+def guess_audio_mime_type(audio_path: Path) -> str:
+    return _guess_mime_type(audio_path, "音频", AUDIO_EXTENSIONS)
+
+
+def guess_video_mime_type(video_path: Path) -> str:
+    return _guess_mime_type(video_path, "视频", VIDEO_EXTENSIONS)
+
+
+# ---------------------------------------------------------------------------
+# 本地文件转 data URL
+# ---------------------------------------------------------------------------
+
+
+def _local_file_to_data_url(
+    file_path: str,
+    category: str,
+    max_size_mb: int,
+    mime_func,
+) -> str:
     """
-    把本地图片转成 data:image/...;base64,... 格式。
+    把本地文件转成 data:<mime>;base64,... 格式。
     """
-    path = Path(image_path).expanduser().resolve()
+    path = Path(file_path).expanduser().resolve()
 
     if not path.exists():
-        raise FileNotFoundError(f"图片不存在：{path}")
+        raise FileNotFoundError(f"{category}文件不存在：{path}")
 
     if not path.is_file():
         raise ValueError(f"路径不是文件：{path}")
 
-    max_size_mb = 20
     file_size_mb = path.stat().st_size / 1024 / 1024
 
     if file_size_mb > max_size_mb:
         raise ValueError(
-            f"图片过大：{file_size_mb:.2f} MB。"
-            f"当前工具限制为 {max_size_mb} MB 以内。"
+            f"{category}文件过大：{file_size_mb:.2f} MB。"
+            f"当前限制为 {max_size_mb} MB 以内。"
         )
 
-    mime_type = guess_mime_type(path)
+    mime_type = mime_func(path)
 
     with path.open("rb") as f:
         encoded = base64.b64encode(f.read()).decode("utf-8")
@@ -125,20 +177,97 @@ def local_image_to_data_url(image_path: str) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
-def validate_image_url(image_url: str) -> str:
+def local_image_to_data_url(image_path: str) -> str:
+    return _local_file_to_data_url(image_path, "图片", 20, guess_image_mime_type)
+
+
+def local_audio_to_data_url(audio_path: str) -> str:
+    return _local_file_to_data_url(audio_path, "音频", 100, guess_audio_mime_type)
+
+
+def local_video_to_data_url(video_path: str) -> str:
+    return _local_file_to_data_url(video_path, "视频", 300, guess_video_mime_type)
+
+
+# ---------------------------------------------------------------------------
+# URL 校验
+# ---------------------------------------------------------------------------
+
+
+def _validate_url(url: str, category: str, data_prefix: str) -> str:
     """
-    校验网络图片 URL 或 data:image Base64 URL。
+    校验网络 URL 或 data: Base64 URL。
     """
     if not (
-        image_url.startswith("http://")
-        or image_url.startswith("https://")
-        or image_url.startswith("data:image/")
+        url.startswith("http://")
+        or url.startswith("https://")
+        or url.startswith(data_prefix)
     ):
         raise ValueError(
-            "image_url 必须是 http、https 或 data:image/...;base64,... 格式。"
+            f"{category} URL 必须是 http、https 或 {data_prefix}...;base64,... 格式。"
         )
 
-    return image_url
+    return url
+
+
+def validate_image_url(image_url: str) -> str:
+    return _validate_url(image_url, "图片", "data:image/")
+
+
+def validate_audio_url(audio_url: str) -> str:
+    return _validate_url(audio_url, "音频", "data:audio/")
+
+
+def validate_video_url(video_url: str) -> str:
+    return _validate_url(video_url, "视频", "data:video/")
+
+
+# ---------------------------------------------------------------------------
+# 构建媒体 URL 列表
+# ---------------------------------------------------------------------------
+
+
+def _build_media_urls(
+    file_path: str | None,
+    file_url: str | None,
+    file_paths: list[str] | None,
+    file_urls: list[str] | None,
+    category: str,
+    local_func,
+    validate_func,
+    max_count: int,
+) -> list[str]:
+    """
+    构建媒体 URL 列表（通用逻辑）。
+    """
+    result: list[str] = []
+
+    if file_path:
+        result.append(local_func(file_path))
+
+    if file_paths:
+        for path in file_paths:
+            result.append(local_func(path))
+
+    if file_url:
+        result.append(validate_func(file_url))
+
+    if file_urls:
+        for url in file_urls:
+            result.append(validate_func(url))
+
+    if not result:
+        raise ValueError(
+            f"必须至少传入一个{category}文件："
+            f"{category}_path、{category}_url、{category}_paths 或 {category}_urls。"
+        )
+
+    if len(result) > max_count:
+        raise ValueError(
+            f"一次最多支持 {max_count} 个{category}文件，当前传入了 {len(result)} 个。"
+        )
+
+    return result
 
 
 def build_image_urls(
@@ -147,60 +276,53 @@ def build_image_urls(
     image_paths: list[str] | None = None,
     image_urls: list[str] | None = None,
 ) -> list[str]:
-    """
-    构建图片 URL 列表。
-
-    支持：
-    1. image_path: 单张本地图片
-    2. image_url: 单张网络图片
-    3. image_paths: 多张本地图片
-    4. image_urls: 多张网络图片
-    """
-    result: list[str] = []
-
-    if image_path:
-        result.append(local_image_to_data_url(image_path))
-
-    if image_paths:
-        for path in image_paths:
-            result.append(local_image_to_data_url(path))
-
-    if image_url:
-        result.append(validate_image_url(image_url))
-
-    if image_urls:
-        for url in image_urls:
-            result.append(validate_image_url(url))
-
-    if not result:
-        raise ValueError(
-            "必须至少传入一张图片："
-            "image_path、image_url、image_paths 或 image_urls。"
-        )
-
-    max_images = 6
-
-    if len(result) > max_images:
-        raise ValueError(
-            f"一次最多支持 {max_images} 张图片，当前传入了 {len(result)} 张。"
-        )
-
-    return result
+    return _build_media_urls(
+        image_path, image_url, image_paths, image_urls,
+        "图片", local_image_to_data_url, validate_image_url, 6,
+    )
 
 
-async def call_mimo_image_api(
+def build_audio_urls(
+    audio_path: str | None = None,
+    audio_url: str | None = None,
+    audio_paths: list[str] | None = None,
+    audio_urls: list[str] | None = None,
+) -> list[str]:
+    return _build_media_urls(
+        audio_path, audio_url, audio_paths, audio_urls,
+        "音频", local_audio_to_data_url, validate_audio_url, 10,
+    )
+
+
+def build_video_urls(
+    video_path: str | None = None,
+    video_url: str | None = None,
+    video_paths: list[str] | None = None,
+    video_urls: list[str] | None = None,
+) -> list[str]:
+    return _build_media_urls(
+        video_path, video_url, video_paths, video_urls,
+        "视频", local_video_to_data_url, validate_video_url, 5,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 通用 MIMO API 调用
+# ---------------------------------------------------------------------------
+
+
+async def call_mimo_api(
     *,
-    image_url_values: list[str],
+    content_parts: list[dict[str, Any]],
     prompt: str,
     system_prompt: str | None,
     temperature: float,
     max_tokens: int,
 ) -> str:
     """
-    调用 MIMO 图片理解接口。
+    调用 MIMO 多模态理解接口（通用）。
 
-    API Key、请求地址、模型名来自 MCP 启动配置。
-    prompt 和 system_prompt 由 Agent 调用工具时决定。
+    content_parts 已包含各媒体内容块，此函数追加 text 块并发送请求。
     """
     if not prompt.strip():
         raise ValueError("prompt 不能为空。")
@@ -224,19 +346,8 @@ async def call_mimo_image_api(
             }
         )
 
-    content: list[dict[str, Any]] = []
-
-    for image_url_value in image_url_values:
-        content.append(
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": image_url_value,
-                },
-            }
-        )
-
-    content.append(
+    # 追加文本 prompt
+    content_parts.append(
         {
             "type": "text",
             "text": prompt,
@@ -246,7 +357,7 @@ async def call_mimo_image_api(
     messages.append(
         {
             "role": "user",
-            "content": content,
+            "content": content_parts,
         }
     )
 
@@ -254,7 +365,7 @@ async def call_mimo_image_api(
         "model": settings["model"],
         "messages": messages,
         "temperature": temperature,
-        "max_tokens": max_tokens,
+        "max_completion_tokens": max_tokens,
     }
 
     headers = {
@@ -263,7 +374,7 @@ async def call_mimo_image_api(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             response = await client.post(
                 endpoint,
                 headers=headers,
@@ -301,6 +412,11 @@ async def call_mimo_image_api(
         return f"MIMO API 返回了非预期格式：\n{data}"
 
 
+# ---------------------------------------------------------------------------
+# MCP 工具：图片理解
+# ---------------------------------------------------------------------------
+
+
 @mcp.tool()
 async def understand_image(
     prompt: str,
@@ -332,7 +448,7 @@ async def understand_image(
     支持单图和多图。Agent 应根据当前任务自己填写 prompt。
 
     Args:
-        prompt: Agent 自己决定的图片理解任务，例如“提取图中文字”“比较两张 UI 截图差异”“解释截图中的报错”。
+        prompt: Agent 自己决定的图片理解任务，例如"提取图中文字""比较两张 UI 截图差异""解释截图中的报错"。
         image_path: 单张本地图片路径，例如 E:/test/screenshot.png。
         image_url: 单张网络图片 URL，或者 data:image/...;base64,... 格式。
         image_paths: 多张本地图片路径，例如 ["E:/test/before.png", "E:/test/after.png"]。
@@ -351,13 +467,190 @@ async def understand_image(
         image_urls=image_urls,
     )
 
-    return await call_mimo_image_api(
-        image_url_values=image_url_values,
+    content_parts: list[dict[str, Any]] = []
+
+    for url_value in image_url_values:
+        content_parts.append(
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": url_value,
+                },
+            }
+        )
+
+    return await call_mimo_api(
+        content_parts=content_parts,
         prompt=prompt,
         system_prompt=system_prompt,
         temperature=temperature,
         max_tokens=max_tokens,
     )
+
+
+# ---------------------------------------------------------------------------
+# MCP 工具：音频理解
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def understand_audio(
+    prompt: str,
+    audio_path: str | None = None,
+    audio_url: str | None = None,
+    audio_paths: list[str] | None = None,
+    audio_urls: list[str] | None = None,
+    system_prompt: str | None = None,
+    temperature: float = 0.2,
+    max_tokens: int = 12000,
+) -> str:
+    """
+    Use this tool for ALL audio understanding tasks.
+
+    This tool calls Xiaomi MIMO multimodal model to analyze and understand audio files.
+    Whenever the user asks to listen to, transcribe, describe, analyze, identify, classify,
+    or answer questions about an audio file, recording, voice message, music, podcast,
+    or any sound file, you MUST call this tool before giving a final answer.
+
+    调用小米 MIMO 多模态模型理解音频。
+
+    CRITICAL: This is the ONLY tool allowed to process audio files (.mp3, .wav, .flac, .m4a, .ogg).
+    If you have a file path pointing to an audio file, DO NOT use 'Read', 'cat', or any
+    file-reading shell commands.
+    Always use this tool to 'listen' to or analyze an audio file.
+
+    支持单个和多个音频文件。Agent 应根据当前任务自己填写 prompt。
+
+    Args:
+        prompt: Agent 自己决定的音频理解任务，例如"转录音频内容""描述音频中的声音""分析音乐风格"。
+        audio_path: 单个本地音频路径，例如 E:/test/recording.wav。
+        audio_url: 单个网络音频 URL，或者 data:audio/...;base64,... 格式。
+        audio_paths: 多个本地音频路径。
+        audio_urls: 多个网络音频 URL。
+        system_prompt: 可选，由 Agent 决定的系统提示词。
+        temperature: 输出随机性，越低越稳定。
+        max_tokens: 最大输出长度。
+
+    Returns:
+        MIMO 模型返回的音频理解结果。
+    """
+    audio_url_values = build_audio_urls(
+        audio_path=audio_path,
+        audio_url=audio_url,
+        audio_paths=audio_paths,
+        audio_urls=audio_urls,
+    )
+
+    content_parts: list[dict[str, Any]] = []
+
+    for url_value in audio_url_values:
+        content_parts.append(
+            {
+                "type": "input_audio",
+                "input_audio": {
+                    "data": url_value,
+                },
+            }
+        )
+
+    return await call_mimo_api(
+        content_parts=content_parts,
+        prompt=prompt,
+        system_prompt=system_prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+
+# ---------------------------------------------------------------------------
+# MCP 工具：视频理解
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def understand_video(
+    prompt: str,
+    video_path: str | None = None,
+    video_url: str | None = None,
+    video_paths: list[str] | None = None,
+    video_urls: list[str] | None = None,
+    fps: float = 2.0,
+    media_resolution: str = "default",
+    system_prompt: str | None = None,
+    temperature: float = 0.2,
+    max_tokens: int = 12000,
+) -> str:
+    """
+    Use this tool for ALL video understanding tasks.
+
+    This tool calls Xiaomi MIMO multimodal model to analyze and understand video files.
+    Whenever the user asks to watch, describe, analyze, summarize, transcribe, extract
+    information from, or answer questions about a video file, clip, recording, or any
+    video content, you MUST call this tool before giving a final answer.
+
+    调用小米 MIMO 多模态模型理解视频。
+
+    CRITICAL: This is the ONLY tool allowed to process video files (.mp4, .mov, .avi, .wmv).
+    If you have a file path pointing to a video file, DO NOT use 'Read', 'cat', or any
+    file-reading shell commands.
+    Always use this tool to 'watch' or analyze a video file.
+
+    支持单个和多个视频文件。Agent 应根据当前任务自己填写 prompt。
+
+    Args:
+        prompt: Agent 自己决定的视频理解任务，例如"描述视频内容""提取视频中的文字""分析视频中的动作"。
+        video_path: 单个本地视频路径，例如 E:/test/video.mp4。
+        video_url: 单个网络视频 URL，或者 data:video/...;base64,... 格式。
+        video_paths: 多个本地视频路径。
+        video_urls: 多个网络视频 URL。
+        fps: 抽帧帧率，范围 [0.1, 10]，默认 2。值越大抽取的帧越多，分析越细致但消耗 Token 越多。
+        media_resolution: 媒体分辨率，"default" 或 "max"。"max" 会使用更高分辨率分析，消耗更多 Token。
+        system_prompt: 可选，由 Agent 决定的系统提示词。
+        temperature: 输出随机性，越低越稳定。
+        max_tokens: 最大输出长度。
+
+    Returns:
+        MIMO 模型返回的视频理解结果。
+    """
+    if fps < 0.1 or fps > 10:
+        raise ValueError(f"fps 必须在 [0.1, 10] 范围内，当前值为 {fps}。")
+
+    if media_resolution not in ("default", "max"):
+        raise ValueError(f"media_resolution 必须是 'default' 或 'max'，当前值为 '{media_resolution}'。")
+
+    video_url_values = build_video_urls(
+        video_path=video_path,
+        video_url=video_url,
+        video_paths=video_paths,
+        video_urls=video_urls,
+    )
+
+    content_parts: list[dict[str, Any]] = []
+
+    for url_value in video_url_values:
+        content_parts.append(
+            {
+                "type": "video_url",
+                "video_url": {
+                    "url": url_value,
+                },
+                "fps": fps,
+                "media_resolution": media_resolution,
+            }
+        )
+
+    return await call_mimo_api(
+        content_parts=content_parts,
+        prompt=prompt,
+        system_prompt=system_prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+
+# ---------------------------------------------------------------------------
+# MCP 资源：配置信息
+# ---------------------------------------------------------------------------
 
 
 @mcp.resource("mimo://config")
